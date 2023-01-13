@@ -16,8 +16,8 @@ tupleSum (a,b) = a + b
 hasSum :: Integer -> (Integer, Integer) -> Bool
 hasSum a b =  (tupleSum b) == a
 
-pairs :: [a] -> [(a, a)]
-pairs l = [ (x,y) | (x:xs) <- tails l, (y:ys) <- tails l ]
+toPairs :: [a] -> [(a, a)]
+toPairs l = [ (x,y) | (x:xs) <- tails l, (y:ys) <- tails l ]
 
 toInt :: String -> Integer
 toInt s = read s :: Integer
@@ -30,7 +30,10 @@ readStdin = do
 pr (x, [l]) = (show x, show l)
 
 solvePart1 :: [String] -> Integer
-solvePart1 l = tupleProd $ head $ filter (hasSum checkSum) $ pairs $ map toInt l
+solvePart1 l = tupleProd $ head $ valid
+  where 
+    pairs = toPairs $ map toInt l
+    valid = filter (hasSum checkSum) pairs
 
 main :: IO ()
 main = do
