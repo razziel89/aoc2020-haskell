@@ -33,20 +33,25 @@ parse l = ((parseRange range), char, passwd)
     char = head $ head $ drop 1 l
     passwd = last l
 
-solution :: ((Int, Int), Char, String) -> Bool
-solution ((rStart, rEnd), c, s) = count >= rStart && count <= rEnd
+solutionPart1 :: ((Int, Int), Char, String) -> Bool
+solutionPart1 ((rStart, rEnd), c, s) = count >= rStart && count <= rEnd
   where
     count = length $ filter (== c) s
 
-solve :: [String] -> Int
-solve l = length $ filter solution $ map parse $ map (splitOn (== ' ')) l
+solutionPart2 :: ((Int, Int), Char, String) -> Bool
+solutionPart2 ((leftPos, rightPos), c, s) = 
+  (c == left && c /= right) ||  (c /= left && c == right)
+  where
+    left = head $ drop (leftPos - 1) s
+    right = head $ drop (rightPos - 1) s
+
+solve :: (((Int, Int), Char, String) -> Bool) -> [String] -> Int
+solve solution l = length $ filter solution $ map parse $ map (splitOn (== ' ')) l
 
 main :: IO ()
 main = do
   lines <- readStdin
-  let out = solve lines
-  putStrLn (show out)
-  -- let part1 = solve lines
-  -- putStrLn (show part1)
-  -- let part2 = solve toTriplets lines
-  -- putStrLn (show part2)
+  let part1 = solve solutionPart1 lines
+  putStrLn (show part1)
+  let part2 = solve solutionPart2 lines
+  putStrLn (show part2)
