@@ -7,11 +7,14 @@ import Data.List
 checkSum :: Integer
 checkSum = 2020
 
+tupleProd :: (Integer, Integer) -> Integer
+tupleProd (a,b) = a * b
+
 tupleSum :: (Integer, Integer) -> Integer
-tupleSum (a,b) = a * b
+tupleSum (a,b) = a + b
 
 hasSum :: Integer -> (Integer, Integer) -> Bool
-hasSum c (a,b) = (a + b) == c
+hasSum a b =  (tupleSum b) == a
 
 pairs :: [a] -> [(a, a)]
 pairs l = [ (x,y) | (x:xs) <- tails l, (y:ys) <- tails l ]
@@ -26,12 +29,11 @@ readStdin = do
 
 pr (x, [l]) = (show x, show l)
 
+solvePart1 :: [String] -> Integer
+solvePart1 l = tupleProd $ head $ filter (hasSum checkSum) $ pairs $ map toInt l
+
 main :: IO ()
 main = do
   lines <- readStdin
-  let ints = map toInt lines
-  let vals = pairs ints
-  let pred = hasSum checkSum
-  let rem = filter pred vals
-  let out = head (map tupleSum rem)
+  let out = solvePart1 lines
   putStrLn (show out)
