@@ -1,2 +1,3 @@
 *.dat
 dist-newstyle/
+[a-z]*-[.0-9]*
