@@ -51,6 +51,13 @@ add v1 v2 = Vector ((vecX v1) + (vecX v2)) ((vecY v1) + (vecY v2))
 
 part1Direction = Vector 3 1
 
+part2Directions =
+  [ Vector 1 1
+  , Vector 3 1
+  , Vector 5 1
+  , Vector 7 1
+  , Vector 1 2 ]
+
 path :: Int -> Vector -> [Vector]
 path maxY dir = L.map fromTuple $ zip xRange yRange
   where
@@ -68,19 +75,22 @@ countJust _ [] = 0
 countJust cmp ((Just actual):xs) = count + rest
   where
     rest = countJust cmp xs
-    count = if actual == cmp
-      then 1
-      else 0
+    count = if actual == cmp then 1 else 0
+
+countTrees :: String -> Vector -> Int
+countTrees file dir = countJust False $ L.map (mapElem chars) $ L.map (modX numCols) thisPath
+  where 
+    numRows = length $ lines file
+    numCols = length $ head $ lines file
+    thisPath = path numRows dir
+    chars = fileToMap file
 
 main :: IO ()
 main = do
   file <- readStdin
-  let numRows = length $ lines file
-  let numCols = length $ head $ lines file
-  let chars = fileToMap file
-  let part1Path = path numRows part1Direction
-  -- putStrLn (show part1Path)
-  let vals = countJust False $ L.map (mapElem chars) $ L.map (modX numCols) part1Path
-  putStrLn (show vals)
+  let valsPart1 = countTrees file part1Direction
+  putStrLn (show valsPart1)
+  let valsPart2 = L.map (countTrees file) part2Directions
+  putStrLn (show $ L.product valsPart2)
   -- let part2 = path solutionPart2 lines
   -- putStrLn (show part2)
