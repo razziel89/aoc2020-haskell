@@ -54,16 +54,23 @@ part1Direction = Vector 3 1
 path :: Int -> Vector -> [Vector]
 path maxY dir = L.map fromTuple $ zip xRange yRange
   where
-    yRange = [(vecY dir), (2*(vecY dir)) .. maxY]
+    yRange = [(vecY dir), (2*(vecY dir)) .. maxY-1]
     xRange = [(vecX dir), (2*(vecX dir)) ..]
 
 mapElem :: (Hashable k, Ord k) => Map k a -> k -> Maybe a 
 mapElem m k = M.lookup k m
 
--- path :: (((Int, Int), Char, String) -> Bool) -> [String] -> Int
--- path numRows m = L.map lookup $ path numRows part1Direction
-  -- where
-  --   lookup k = M.lookup k m
+modX :: Int -> Vector -> Vector
+modX m (Vector x y) = Vector (mod x m) y
+
+countJust :: (Eq a) => a -> [Maybe a] -> Int
+countJust _ [] = 0
+countJust cmp ((Just actual):xs) = count + rest
+  where
+    rest = countJust cmp xs
+    count = if actual == cmp
+      then 1
+      else 0
 
 main :: IO ()
 main = do
@@ -72,8 +79,8 @@ main = do
   let numCols = length $ head $ lines file
   let chars = fileToMap file
   let part1Path = path numRows part1Direction
-  putStrLn (show part1Path)
-  let vals = L.map (mapElem chars) part1Path
+  -- putStrLn (show part1Path)
+  let vals = countJust False $ L.map (mapElem chars) $ L.map (modX numCols) part1Path
   putStrLn (show vals)
   -- let part2 = path solutionPart2 lines
   -- putStrLn (show part2)
