@@ -22,6 +22,9 @@ enumerate l = zip [0..] l
 toInt :: String -> Int
 toInt str = read str :: Int
 
+inRange :: (Ord a) => a -> a -> a -> Bool
+inRange min max val = min <= val && val <= max
+
 canBeInt :: String -> Bool
 canBeInt l = L.all (inRange '0' '9')  l
 
@@ -44,9 +47,6 @@ reqFieldsList =
   , "ecl"
   , "pid"
   , "cid" ]
-
-inRange :: (Ord a) => a -> a -> a -> Bool
-inRange min max val = min <= val && val <= max
 
 hasLength :: Int -> String -> Bool
 hasLength len val = (length val) == len
@@ -97,13 +97,13 @@ isHeight s = (endsWith "in" s && inRange 59 76 num) || (endsWith "cm" s && inRan
 reqFieldsRules :: [(String, (String -> Bool))]
 reqFieldsRules=
   [
-    ("byr", (\s -> inRange 1920 2022 $ toInt s))
+    ("byr", (\s -> inRange 1920 2002 $ toInt s))
   , ("iyr", (\s -> inRange 2010 2020 $ toInt s))
   , ("eyr", (\s -> (hasLength 4 s) && (inRange 2020 2030 $ toInt s)))
   , ("hgt", (\s -> isHeight s))
   , ("hcl", (\s -> isHairCol s))
   , ("ecl", (\s -> isEyeCol s))
-  , ("pid", (\s -> (hasLength 9 s) && (canBeInt s)))
+  , ("pid", (\s -> hasLength 9 s && canBeInt s))
   , ("cid", (\s -> True))
   ]
 
