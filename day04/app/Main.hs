@@ -36,8 +36,8 @@ splitOn pred input =
     l -> word : (splitOn pred rest)
       where (word, rest) = break pred l
 
-passportToFields :: [String] -> [String]
-passportToFields p = L.map head $ L.map (splitOn (==':')) p
+passportToFields :: [String] -> [(String, String)]
+passportToFields p = L.map (\x -> (head x, last x)) $ L.map (splitOn (==':')) p
 
 reqFieldsList =
   [ "byr"
@@ -54,26 +54,22 @@ hasElem e [] = False
 hasElem e (x:xs) = if x == e then True else hasElem e xs
 
 validPart1 :: Set String -> [String] -> Bool
-validPart1 reqSet split = fields == reqSet
+validPart1 reqSet passport = (S.fromList $ M.keys fields) == reqSet
   where
   -- Extract fields but disregard the one that doesn't matter for the
   -- comparison.
-    fields = S.fromList $ L.filter (/="cid") $ passportToFields passport
-    -- Split each string into its component words but then combine all lists again
-    -- so that each passport is a single entry.
-    passport = concat $ L.map words split
+    fields = M.fromList $ L.filter (\x -> (fst x) /= "cid") $ passportToFields passport
     
 
 main :: IO ()
 main = do
   contents <- readStdin
-  -- Split into lines and create nested lists that are each separated by empty
-  -- lines.
-  let split = splitOn (=="") $ lines contents
+  -- Extract passports from weird input format.
+  let passports = L.map (\x -> concat $ L.map words x) $ splitOn (=="") $ lines contents
   -- Get set of those fields that are required.
   let reqFieldsSet = S.fromList $ L.filter (/="cid") reqFieldsList
   -- Check which passport is valid for part 1.
-  let valsPart1 = length $ L.filter (\x -> x) $ L.map (validPart1 reqFieldsSet) split
+  let valsPart1 = length $ L.filter (==True) $ L.map (validPart1 reqFieldsSet) passports
   putStrLn (show valsPart1)
   -- let valsPart2 = L.map (countTrees contents) part2Directions
   -- putStrLn (show $ L.product valsPart2)
