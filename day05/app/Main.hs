@@ -79,21 +79,30 @@ maxElem (x:xs) = if x > restMax then x else restMax
   where
     restMax = maxElem xs
 
+numSeats = 128 * 8 :: Int
+
+numToSpread :: Int -> (Int, Int, Int)
+numToSpread i = (i-1, i, i+1)
+
+isCandidateSpread :: (Ord k) => Set k -> (k, k, k) -> Bool
+isCandidateSpread s (x, y, z) = S.member x s && (not $ S.member y s) && S.member z s
+
+mid :: (a, a, a) -> a
+mid (a, b, c) = b
+
 main :: IO ()
 main = do
   contents <- readStdin
-  -- Validate that inputs have the expected length.
-  let valid = L.all (hasLength 10) $ lines contents
-  putStrLn $ if valid then "valid" else "invalid"
+  -- Part 1.
   let parsed = L.map parse $ lines contents
-  putStrLn (show parsed)
   let split = L.map (L.splitAt 7) parsed
-  putStrLn (show split)
   let partitioned = L.map (\x -> ((binPart (0, 127) $ fst x), (binPart (0, 7) $ snd x))) split
-  putStrLn (show partitioned)
-  let validPartitions = L.all nestedBothSame partitioned
-  putStrLn $ if validPartitions then "valid" else "invalid"
   let seatIds = L.map toSeatId $ L.map unNest partitioned
-  putStrLn (show seatIds)
+  -- putStrLn (show seatIds)
   let largestId = maxElem seatIds
   putStrLn (show largestId)
+  -- Part 2
+  let seatIdsSet = S.fromList seatIds
+  -- We cannot be sitting at the very front or back.
+  let candidates = head $ L.map mid $ L.filter (isCandidateSpread seatIdsSet) $ L.map numToSpread [1..numSeats-2]
+  putStrLn (show candidates)
