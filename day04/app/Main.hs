@@ -97,14 +97,14 @@ isHeight s = (endsWith "in" s && inRange 59 76 num) || (endsWith "cm" s && inRan
 reqFieldsRules :: [(String, (String -> Bool))]
 reqFieldsRules=
   [
-    ("byr", (\s -> inRange 1920 2002 $ toInt s))
-  , ("iyr", (\s -> inRange 2010 2020 $ toInt s))
-  , ("eyr", (\s -> (hasLength 4 s) && (inRange 2020 2030 $ toInt s)))
-  , ("hgt", (\s -> isHeight s))
-  , ("hcl", (\s -> isHairCol s))
-  , ("ecl", (\s -> isEyeCol s))
-  , ("pid", (\s -> hasLength 9 s && canBeInt s))
-  , ("cid", (\s -> True))
+  ("byr", (\s -> inRange 1920 2002 $ toInt s)) ,
+  ("iyr", (\s -> inRange 2010 2020 $ toInt s)) ,
+  ("eyr", (\s -> (hasLength 4 s) && (inRange 2020 2030 $ toInt s))) ,
+  ("hgt", (\s -> isHeight s)) ,
+  ("hcl", (\s -> isHairCol s)) ,
+  ("ecl", (\s -> isEyeCol s)) ,
+  ("pid", (\s -> hasLength 9 s && canBeInt s)) ,
+  ("cid", (\s -> True))
   ]
 
 hasElem :: (Eq a) => a -> [a] -> Bool
