@@ -14,9 +14,12 @@ readStdin :: IO String
 readStdin = do
   readFile "/dev/stdin"
 
-toIntWithNo :: String -> Int
-toIntWithNo "no" = 0
-toIntWithNo str = read str :: Int
+toInt :: String -> Int
+toInt str = read str :: Int
+
+noToZero :: String -> String
+noToZero "no" = "0"
+noToZero s = s
 
 splitOn :: (a -> Bool) -> [a] -> [[a]]
 splitOn pred input =
@@ -52,11 +55,11 @@ parse l = Def bag map
       splitOn (== ',') $ L.unwords $ L.drop 4 words
     map =
       M.fromList $
-      L.filter (\t -> snd t /= 0) $
+      L.filter ((/= 0) . snd) $
       L.map
         (\s ->
            ( Bag $ applyToWords (L.drop 1) s
-           , toIntWithNo $ applyToWords (L.take 1) s))
+           , toInt $ noToZero $ applyToWords (L.take 1) s))
         secondHalf
 
 main :: IO ()
