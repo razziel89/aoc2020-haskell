@@ -17,9 +17,9 @@ readStdin = do
 toInt :: String -> Int
 toInt str = read str :: Int
 
-noToZero :: String -> String
-noToZero "no" = "0"
-noToZero s = s
+noTo :: String -> String -> String
+noTo def "no" = "0"
+noTo def s = s
 
 splitOn :: (a -> Bool) -> [a] -> [[a]]
 splitOn pred input =
@@ -51,8 +51,8 @@ getBag (Def b m) = b
 getBags :: Def -> [Bag]
 getBags (Def b m) = M.keys m
 
-parse :: String -> Def
-parse l = Def bag map
+parse :: (String -> String) -> String -> Def
+parse makeNoAnInt l = Def bag map
   where
     line = L.filter (/= '.') l
     bag = Bag $ applyToWords (L.take 2) line
@@ -65,7 +65,7 @@ parse l = Def bag map
       L.map
         (\s ->
            ( Bag $ applyToWords (L.drop 1) s
-           , toInt $ noToZero $ applyToWords (L.take 1) s))
+           , toInt $ makeNoAnInt $ applyToWords (L.take 1) s))
         secondHalf
 
 shiny :: Bag
@@ -101,6 +101,17 @@ translate m l =
   where
     newlist = translate m $ makeUnique $ L.concatMap (lookupWithPanic m) l
 
+-- accum :: Map Bag Int -> Map Bag Int -> Map Bag Int
+-- accum m l =
+--   case L.length l of
+--     0 -> l
+--     1 ->
+--       if L.head l == shiny
+--         then l
+--         else newlist
+--     _ -> newlist
+--   where
+--     newlist = accum m $ makeUnique $ L.concatMap (lookupWithPanic m) l
 shinyRemains :: Map Bag [Bag] -> Map Bag [Bag]
 shinyRemains = M.mapWithKey f
   where
@@ -113,11 +124,12 @@ main :: IO ()
 main = do
   contents <- readStdin
   -- Part 1.
-  -- Filter out the shiny bag as key because we do not want to traverse that
-  -- bag. At least not for part 1.
-  let defs = shinyRemains $ makeMap $ L.map parse $ lines contents
-  print defs
+  let defs = shinyRemains $ makeMap $ L.map (parse (noTo "0")) $ lines contents
   let bags = L.filter (/= shiny) $ M.keys defs
   let part1 =
         L.length $ L.filter (== [shiny]) $ L.map (\b -> translate defs [b]) bags
   print part1
+  -- Part 2.
+  let defsPart2 = L.map (parse (noTo "0")) $ lines contents
+  let part2 = L.unlines $ L.map show defsPart2
+  putStr part2
