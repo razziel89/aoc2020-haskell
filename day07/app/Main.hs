@@ -48,11 +48,11 @@ data Def =
 parse :: String -> Def
 parse l = Def bag map
   where
-    words = L.words $ L.filter (/= '.') l
-    bag = Bag $ L.unwords $ L.take 2 words
+    line = L.filter (/= '.') l
+    bag = Bag $ applyToWords (L.take 2) line
     secondHalf =
       L.map (applyToWords $ L.take 3) $
-      splitOn (== ',') $ L.unwords $ L.drop 4 words
+      splitOn (== ',') $ applyToWords (L.drop 4) line
     map =
       M.fromList $
       L.filter ((/= 0) . snd) $
