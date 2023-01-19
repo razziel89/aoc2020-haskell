@@ -2,6 +2,7 @@
 
 module Main where
 
+import Data.Bifunctor as BF
 import Data.Hashable
 import Data.List as L
 import Data.Map as M
@@ -41,6 +42,8 @@ newtype Bag =
   Bag String
   deriving (Show, Ord, Eq)
 
+-- This type was a rather stupid decision. But we have some code that's using it
+-- so we're keeping it for this puzzle.
 data Def =
   Def Bag (Map Bag Int)
   deriving (Show, Ord, Eq)
@@ -50,6 +53,20 @@ getBag (Def b m) = b
 
 getBags :: Def -> [Bag]
 getBags (Def b m) = M.keys m
+
+defsToBagMap :: [Def] -> Map Bag [(Bag, Int)]
+defsToBagMap l = M.fromList $ L.map (convert . extract) l
+  where
+    getBagsWithCounts :: Def -> [(Bag, Int)]
+    getBagsWithCounts (Def b m) = M.toList m
+    --
+    extract :: Def -> (Bag, [(Bag, Int)])
+    extract d = (getBag d, getBagsWithCounts d) -- :: Def -> (Bag, [(Bag, Int)])
+    -- Make sure that bags that do not contain any other bags will be mapped to
+    -- something that we can then count. This is pretty hacky, admittedly.
+    convert :: (Bag, [(Bag, Int)]) -> (Bag, [(Bag, Int)])
+    convert (b, []) = (b, [(plain, 1)])
+    convert (b, l) = (b, l)
 
 parse :: (String -> String) -> String -> Def
 parse makeNoAnInt l = Def bag map
@@ -70,6 +87,9 @@ parse makeNoAnInt l = Def bag map
 
 shiny :: Bag
 shiny = Bag "shiny gold"
+
+plain :: Bag
+plain = Bag "plain"
 
 emptyBag :: Bag
 emptyBag = Bag ""
@@ -101,17 +121,27 @@ translate m l =
   where
     newlist = translate m $ makeUnique $ L.concatMap (lookupWithPanic m) l
 
--- accum :: Map Bag Int -> Map Bag Int -> Map Bag Int
--- accum m l =
---   case L.length l of
---     0 -> l
---     1 ->
---       if L.head l == shiny
---         then l
---         else newlist
---     _ -> newlist
---   where
---     newlist = accum m $ makeUnique $ L.concatMap (lookupWithPanic m) l
+multiply :: [(Int, [(a, Int)])] -> [(a, Int)]
+multiply = L.concatMap conv
+  where
+    conv :: (Int, [(a, Int)]) -> [(a, Int)]
+    conv (count, l) = L.map (BF.second (count *)) l
+
+accum :: Map Bag [(Bag, Int)] -> Map Bag Int -> Map Bag Int
+accum bm m =
+  case M.size m of
+    0 -> error "empty map detected"
+    1 ->
+      if M.member shiny m
+        then convertedMap
+        else m
+    _ -> convertedMap
+  where
+    converted :: [(Int, [(Bag, Int)])]
+    converted = converted
+    --
+    convertedMap = M.fromListWith (+) $ multiply converted
+
 shinyRemains :: Map Bag [Bag] -> Map Bag [Bag]
 shinyRemains = M.mapWithKey f
   where
@@ -131,5 +161,6 @@ main = do
   print part1
   -- Part 2.
   let defsPart2 = L.map (parse (noTo "0")) $ lines contents
-  let part2 = L.unlines $ L.map show defsPart2
-  putStr part2
+  let part2 =
+        M.foldl (+) 0 $ accum (defsToBagMap defsPart2) (M.fromList [(shiny, 1)])
+  print part2
