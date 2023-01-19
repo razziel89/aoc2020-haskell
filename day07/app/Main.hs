@@ -91,6 +91,11 @@ shiny = Bag "shiny gold"
 plain :: Bag
 plain = Bag "plain"
 
+plainDef :: Def
+plainDef = Def plain plainMap
+  where
+    plainMap = M.fromList [(plain, 1)]
+
 emptyBag :: Bag
 emptyBag = Bag ""
 
@@ -127,20 +132,25 @@ multiply = L.concatMap conv
     conv :: (Int, [(a, Int)]) -> [(a, Int)]
     conv (count, l) = L.map (BF.second (count *)) l
 
-accum :: Map Bag [(Bag, Int)] -> Map Bag Int -> Map Bag Int
-accum bm m =
+accum :: Map Bag [(Bag, Int)] -> (Int, Map Bag Int) -> (Int, Map Bag Int)
+accum bm (acc, m) =
   case M.size m of
     0 -> error "empty map detected"
     1 ->
       if M.member shiny m
-        then convertedMap
-        else m
-    _ -> convertedMap
+        then nextCall
+        else (more, m)
+    _ -> nextCall
   where
     converted :: [(Int, [(Bag, Int)])]
-    converted = converted
+    converted = L.map (\e -> (snd e, lookupWithPanic bm $ fst e)) $ M.toList m
     --
     convertedMap = M.fromListWith (+) $ multiply converted
+    --
+    noPlain = M.filterWithKey (\k v -> k /= plain) convertedMap
+    more = acc + L.sum (M.elems noPlain)
+    --
+    nextCall = accum bm (more, convertedMap)
 
 shinyRemains :: Map Bag [Bag] -> Map Bag [Bag]
 shinyRemains = M.mapWithKey f
@@ -160,7 +170,7 @@ main = do
         L.length $ L.filter (== [shiny]) $ L.map (\b -> translate defs [b]) bags
   print part1
   -- Part 2.
-  let defsPart2 = L.map (parse (noTo "0")) $ lines contents
-  let part2 =
-        M.foldl (+) 0 $ accum (defsToBagMap defsPart2) (M.fromList [(shiny, 1)])
-  print part2
+  -- Def Bag (Map Bag Int)
+  let defsPart2 = plainDef : L.map (parse (noTo "0")) (lines contents)
+  let part2 = accum (defsToBagMap defsPart2) (0, M.fromList [(shiny, 1)])
+  print $ fst part2
