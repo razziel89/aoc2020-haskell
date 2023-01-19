@@ -91,6 +91,8 @@ shiny = Bag "shiny gold"
 plain :: Bag
 plain = Bag "plain"
 
+-- This def will make sure we will keep all plain bags while replacing bags with
+-- their contents.
 plainDef :: Def
 plainDef = Def plain plainMap
   where
@@ -146,9 +148,10 @@ accum bm (acc, m) =
     converted = L.map (\e -> (snd e, lookupWithPanic bm $ fst e)) $ M.toList m
     --
     convertedMap = M.fromListWith (+) $ multiply converted
-    --
-    noPlain = M.filterWithKey (\k v -> k /= plain) convertedMap
-    more = acc + L.sum (M.elems noPlain)
+    -- We count the total number of bags that we have but disregard any plain
+    -- bags.
+    more =
+      acc + L.sum (M.elems $ M.filterWithKey (\k v -> k /= plain) convertedMap)
     --
     nextCall = accum bm (more, convertedMap)
 
@@ -170,7 +173,6 @@ main = do
         L.length $ L.filter (== [shiny]) $ L.map (\b -> translate defs [b]) bags
   print part1
   -- Part 2.
-  -- Def Bag (Map Bag Int)
   let defsPart2 = plainDef : L.map (parse (noTo "0")) (lines contents)
   let part2 = accum (defsToBagMap defsPart2) (0, M.fromList [(shiny, 1)])
   print $ fst part2
