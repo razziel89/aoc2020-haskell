@@ -1,5 +1,3 @@
-{-# LANGUAGE TupleSections #-}
-
 module Main where
 
 import Data.Bifunctor as BF
@@ -46,16 +44,20 @@ myTrace msg a = traceShow (msg ++ " " ++ show a) a
 apply :: ((String, Int), Int, Int, Bool) -> (Int, Int, Bool)
 apply ((op, val), acc, idx, swap) =
   case op of
+    "acc" -> (acc + val, idx + 1, False)
+    -- The "stp" (or "stop") op does not progress the pointer, which causes a
+    -- repetition of ops, which stops the entire process. This feels hacky but
+    -- it works. The "stop" op is guaranteed to be the very last instruction.
+    "stp" -> (acc, idx, True)
+    -- Swap nop and jmp if desired.
     "nop" ->
       if swap
         then (acc, idx + val, False)
         else (acc, idx + 1, False)
-    "acc" -> (acc + val, idx + 1, False)
     "jmp" ->
       if swap
         then (acc, idx + 1, False)
         else (acc, idx + val, False)
-    "stp" -> (acc, idx, True)
 
 sec (a, b, c) = b
 
@@ -63,10 +65,10 @@ thi (a, b, c) = c
 
 multiApply ::
      [(String, Int)] -> Int -> (Int, Int, Bool) -> Set Int -> (Int, Int, Bool)
-multiApply ops swapIdx (acc, next, stopped) set = newVal
+multiApply ops swapIdx (acc, next, stopped) visited = newVal
   where
-    alreadyVisited = S.member next set
-    largerSet = S.union set (S.fromList [next])
+    alreadyVisited = S.member next visited
+    largerSet = S.union visited (S.fromList [next])
     op = ops !! next
     newNext = apply (op, acc, next, next == swapIdx)
     newVal =
