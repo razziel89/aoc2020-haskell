@@ -96,4 +96,9 @@ main = do
         L.map fst $
         L.filter (\e -> (fst . snd) e == "jmp" || (fst . snd) e == "nop") $
         enumerate parsed2
-  print swapIndices
+  let part2 =
+        L.filter
+          (\e -> thi $ multiApply parsed2 e (0, 0, False) S.empty)
+          swapIndices
+  let applied2 = sec $ multiApply parsed2 (L.head part2) (0, 0, False) S.empty
+  print applied2
