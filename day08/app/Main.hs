@@ -43,24 +43,39 @@ lookupWithPanic m k =
 myTrace :: (Show a) => String -> a -> a
 myTrace msg a = traceShow (msg ++ " " ++ show a) a
 
-apply :: ((String, Int), Int, Int) -> (Int, Int)
-apply ((op, val), acc, idx) =
+apply :: ((String, Int), Int, Int, Bool) -> (Int, Int, Bool)
+apply ((op, val), acc, idx, swap) =
   case op of
-    "nop" -> (acc, idx + 1)
-    "acc" -> (acc + val, idx + 1)
-    "jmp" -> (acc, idx + val)
+    "nop" ->
+      if swap
+        then (acc, idx + val, False)
+        else (acc, idx + 1, False)
+    "acc" -> (acc + val, idx + 1, False)
+    "jmp" ->
+      if swap
+        then (acc, idx + 1, False)
+        else (acc, idx + val, False)
+    "stp" -> (acc, idx, True)
 
-multiApply :: [(String, Int)] -> (Int, Int) -> Set Int -> (Int, Int)
-multiApply ops (acc, next) set = newVal
+sec (a, b, c) = b
+
+thi (a, b, c) = c
+
+multiApply ::
+     [(String, Int)] -> Int -> (Int, Int, Bool) -> Set Int -> (Int, Int, Bool)
+multiApply ops swapIdx (acc, next, stopped) set = newVal
   where
     alreadyVisited = S.member next set
     largerSet = S.union set (S.fromList [next])
     op = ops !! next
-    newNext = apply (op, acc, next)
+    newNext = apply (op, acc, next, next == swapIdx)
     newVal =
       if alreadyVisited
-        then (next, acc)
-        else multiApply ops newNext largerSet
+        then (next, acc, thi newNext)
+        else multiApply ops swapIdx newNext largerSet
+
+enumerate :: [a] -> [(Int, a)]
+enumerate = zip [0 ..]
 
 main :: IO ()
 main = do
@@ -71,6 +86,14 @@ main = do
         L.map (BF.second (toInt . L.filter (/= '+')) . listToTuple . L.words) $
         lines contents
   let visited = S.empty
-  -- print parsed
-  let applied = snd $ multiApply parsed (0, 0) S.empty
+  -- We use "-1" as swap index because we don't actually want to swap any
+  -- operation.
+  let applied = sec $ multiApply parsed (-1) (0, 0, False) S.empty
   print applied
+  -- Part 2.
+  let parsed2 = parsed ++ [("stp", 0)]
+  let swapIndices =
+        L.map fst $
+        L.filter (\e -> (fst . snd) e == "jmp" || (fst . snd) e == "nop") $
+        enumerate parsed2
+  print swapIndices
