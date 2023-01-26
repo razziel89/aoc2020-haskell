@@ -1,9 +1,13 @@
+{-# LANGUAGE TupleSections #-}
+
 module Main where
 
 import Data.Bifunctor as BF
 import Data.Hashable
 import Data.List as L
 import Data.Map as M
+import Data.Maybe as May
+import Data.Sequence as Seq
 import Data.Set as S
 import Debug.Trace
 import GHC.Generics (Generic)
@@ -13,94 +17,83 @@ readStdin :: IO String
 readStdin = do
   readFile "/dev/stdin"
 
+enumerate :: [a] -> [(Int, a)]
+enumerate = L.zip [0 ..]
+
 toInt :: String -> Int
 toInt str = read str :: Int
 
-listToTuple :: [a] -> (a, a)
-listToTuple l = (head, second)
+data FIFO len a =
+  FIFO len (Seq a)
+  deriving (Show)
+
+getSeq (FIFO _ seq) = seq
+
+new :: Int -> FIFO Int a
+new len = FIFO len Seq.empty
+
+-- Never take more than the first maxLen elements from the list.
+fromList :: Int -> [a] -> FIFO Int a
+fromList maxLen l = FIFO maxLen (Seq.fromList limited)
   where
-    head = L.head l
-    second =
-      if L.length l == 2
-        then l !! 1
-        else error "list has length /= 2"
+    limited = L.take maxLen l
 
-splitOn :: (a -> Bool) -> [a] -> [[a]]
-splitOn pred input =
-  case dropWhile pred input of
-    [] -> []
-    l -> word : splitOn pred rest
-      where (word, rest) = break pred l
+dropFirst :: Seq a -> Seq a
+dropFirst = Seq.deleteAt 0
 
-lookupWithPanic :: (Ord k) => Map k [v] -> k -> [v]
-lookupWithPanic m k =
-  if M.member k m
-    then M.findWithDefault [] k m
-    else error "cannot find entry"
-
-myTrace :: (Show a) => String -> a -> a
-myTrace msg a = traceShow (msg ++ " " ++ show a) a
-
-apply :: ((String, Int), Int, Int, Bool) -> (Int, Int, Bool)
-apply ((op, val), acc, idx, swap) =
-  case op of
-    "acc" -> (acc + val, idx + 1, False)
-    -- The "stp" (or "stop") op does not progress the pointer, which causes a
-    -- repetition of ops, which stops the entire process. This feels hacky but
-    -- it works. The "stop" op is guaranteed to be the very last instruction.
-    "stp" -> (acc, idx, True)
-    -- Swap nop and jmp if desired.
-    "nop" ->
-      if swap
-        then (acc, idx + val, False)
-        else (acc, idx + 1, False)
-    "jmp" ->
-      if swap
-        then (acc, idx + 1, False)
-        else (acc, idx + val, False)
-
-sec (a, b, c) = b
-
-thi (a, b, c) = c
-
-multiApply ::
-     [(String, Int)] -> Int -> (Int, Int, Bool) -> Set Int -> (Int, Int, Bool)
-multiApply ops swapIdx (acc, next, stopped) visited = newVal
+-- Why the heck is there no function for converting a Seq to a list?
+seqToList :: Seq a -> [a]
+seqToList Seq.Empty = []
+seqToList (x :<| xs) = x : rest
   where
-    alreadyVisited = S.member next visited
-    largerSet = S.union visited (S.fromList [next])
-    op = ops !! next
-    newNext = apply (op, acc, next, next == swapIdx)
-    newVal =
-      if alreadyVisited
-        then (next, acc, thi newNext)
-        else multiApply ops swapIdx newNext largerSet
+    rest = seqToList xs
 
-enumerate :: [a] -> [(Int, a)]
-enumerate = zip [0 ..]
+push :: a -> FIFO Int (Int, a) -> FIFO Int (Int, a)
+push x (FIFO len Seq.Empty) = FIFO len (Seq.singleton (0, x))
+push x (FIFO len seq) =
+  if Seq.length seq < len
+    then FIFO len (seq |> nextElement)
+    else FIFO len (allButFirst |> nextElement)
+  where
+    (_ :|> (lastIdx, _)) = seq
+    (_ :<| allButFirst) = seq
+    nextElement = (lastIdx + 1, x)
+
+-- Why the heck is there no Seq.map function but only mapWithIndex?
+findSummable :: Int -> (Int, Int) -> Seq (Int, Int) -> [Int]
+findSummable sum (idx, val) seq =
+  seqToList $ Seq.mapWithIndex fstWithIndex filtered
+  where
+    sumFn (eIdx, e) = eIdx /= idx && sum == val + e
+    filtered = Seq.filter sumFn seq
+    fstWithIndex _ (idx, _) = idx
+
+findSummablePairs :: Int -> Seq (Int, Int) -> [(Int, Int)]
+findSummablePairs sum Seq.Empty = []
+findSummablePairs sum (first :<| rest) =
+  L.map (fst first, ) (findSummable sum first rest) ++ moreIndices
+  where
+    moreIndices = findSummablePairs sum rest
+
+solvePart1 :: [Int] -> FIFO Int (Int, Int) -> [Bool]
+solvePart1 [] _ = []
+solvePart1 (x:xs) (FIFO len seq) = found : others
+  where
+    found = not $ L.null $ findSummablePairs x seq
+    pushed = push x (FIFO len seq)
+    others = solvePart1 xs pushed
 
 main :: IO ()
 main = do
   contents <- readStdin
-  -- Somehow, "+4" cannot be parsed as a positive integer... Thus, we remove
-  -- that character from the input before parsing it.
-  let parsed =
-        L.map (BF.second (toInt . L.filter (/= '+')) . listToTuple . L.words) $
-        lines contents
-  let visited = S.empty
-  -- We use "-1" as swap index because we don't actually want to swap any
-  -- operation.
-  let applied = sec $ multiApply parsed (-1) (0, 0, False) S.empty
-  print applied
-  -- Part 2.
-  let parsed2 = parsed ++ [("stp", 0)]
-  let swapIndices =
+  -- Read stuff in.
+  let preambleLength = toInt $ L.head $ L.words contents
+  let nums = L.drop 1 $ L.map toInt $ L.words contents
+  let moreNums = L.drop preambleLength nums
+  -- 
+  let preamble = Main.fromList preambleLength $ enumerate nums
+  -- let part1 = findSummable 40 (0, 25) preamble
+  let part1 =
         L.map fst $
-        L.filter (\e -> (fst . snd) e == "jmp" || (fst . snd) e == "nop") $
-        enumerate parsed2
-  let part2 =
-        L.filter
-          (\e -> thi $ multiApply parsed2 e (0, 0, False) S.empty)
-          swapIndices
-  let applied2 = sec $ multiApply parsed2 (L.head part2) (0, 0, False) S.empty
-  print applied2
+        L.filter (not . snd) $ L.zip moreNums $ solvePart1 moreNums preamble
+  print part1
