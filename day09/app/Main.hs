@@ -27,10 +27,11 @@ data FIFO len a =
   FIFO len (Seq a)
   deriving (Show)
 
-getSeq (FIFO _ seq) = seq
+data FIFOWithSum a =
+  FIFOWithSum a a (Seq (Int, a))
+  deriving (Show)
 
-new :: Int -> FIFO Int a
-new len = FIFO len Seq.empty
+getSeq (FIFOWithSum _ _ seq) = seq
 
 -- Never take more than the first maxLen elements from the list.
 fromList :: Int -> [a] -> FIFO Int a
@@ -59,6 +60,29 @@ push x (FIFO len seq) =
     (_ :<| allButFirst) = seq
     nextElement = (lastIdx + 1, x)
 
+normalize :: FIFOWithSum Int -> FIFOWithSum Int
+normalize (FIFOWithSum maxSum sum ((_, x) :<| xs)) =
+  if newSum <= maxSum
+    then smaller
+    else normalize smaller
+  where
+    newSum = sum - x
+    smaller = FIFOWithSum maxSum newSum xs
+
+pushFWS :: Int -> FIFOWithSum Int -> FIFOWithSum Int
+pushFWS x (FIFOWithSum maxSum sum Seq.Empty) =
+  FIFOWithSum maxSum x (Seq.singleton (0, x))
+pushFWS x (FIFOWithSum maxSum sum seq) =
+  if sum + x <= maxSum
+    then larger
+    else normalize larger
+  where
+    (_ :|> (lastIdx, _)) = seq
+    nextElement = (lastIdx + 1, x)
+    larger = FIFOWithSum maxSum (sum + x) (seq |> nextElement)
+
+newFWS maxSum = FIFOWithSum maxSum 0 Seq.Empty
+
 -- Why the heck is there no Seq.map function but only mapWithIndex?
 findSummable :: Int -> (Int, Int) -> Seq (Int, Int) -> [Int]
 findSummable sum (idx, val) seq =
@@ -83,6 +107,29 @@ solvePart1 (x:xs) (FIFO len seq) = found : others
     pushed = push x (FIFO len seq)
     others = solvePart1 xs pushed
 
+findPart2 :: [Int] -> FIFOWithSum Int -> [(Int, Int)]
+findPart2 [] _ = []
+findPart2 (x:xs) fifo@(FIFOWithSum maxSum sum seq) =
+  if sum == maxSum
+    then seqToList seq
+    else next
+  where
+    pushed = pushFWS x fifo
+    next = findPart2 xs pushed
+
+minAndMax :: [Int] -> (Int, Int)
+minAndMax [x] = (x, x)
+minAndMax (x:xs) = (newMin, newMax)
+  where
+    newMin = min x otherMin
+    newMax = max x otherMax
+    (otherMin, otherMax) = minAndMax xs
+
+sumOfSmallestAndLargest :: [Int] -> Int
+sumOfSmallestAndLargest l = minVal + maxVal
+  where
+    (minVal, maxVal) = minAndMax l
+
 main :: IO ()
 main = do
   contents <- readStdin
@@ -96,4 +143,10 @@ main = do
   let part1 =
         L.map fst $
         L.filter (not . snd) $ L.zip moreNums $ solvePart1 moreNums preamble
-  print part1
+  print $ L.head part1
+  -- part 2
+  let firstInvalid = L.head part1
+  let part2 =
+        sumOfSmallestAndLargest $
+        L.map snd $ findPart2 nums (FIFOWithSum firstInvalid 0 Seq.empty)
+  print part2
