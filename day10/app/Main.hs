@@ -43,6 +43,21 @@ numDiffs wantedDiff l = L.length $ L.filter (== wantedDiff) diffs
     diff (left, right) = abs (left - right)
     diffs = L.map diff pairs
 
+zipWithConst :: a -> [a] -> [(a, a)]
+zipWithConst val = L.map (, val)
+
+addWhileSmaller :: (Int, Int) -> [(Int, Int)] -> [(Int, Int)]
+addWhileSmaller tup [] = []
+addWhileSmaller tup@(val, count) l@((jolt, joltCount):xs) =
+  if val + 3 >= jolt
+    then (jolt, joltCount + count) : addWhileSmaller tup xs
+    else l
+
+countConnections :: [(Int, Int)] -> [(Int, Int)]
+countConnections [x] = [x]
+countConnections (tup@(jolt, count):xs) =
+  countConnections $ addWhileSmaller tup xs
+
 main :: IO ()
 main = do
   contents <- readStdin
@@ -51,3 +66,9 @@ main = do
   let part1 = Sort.sort $ [0] ++ jolts ++ [deviceJolts]
   let solution = numDiffs 1 part1 * numDiffs 3 part1
   print (part1, solution, L.length part1, L.length jolts)
+  -- Part 2
+  let counts =
+        [(outletJolts, 1)] ++
+        zipWithConst 0 (Sort.sort jolts) ++ [(deviceJolts, 0)]
+  let part2 = countConnections counts
+  print part2
