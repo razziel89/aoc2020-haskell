@@ -18,22 +18,11 @@ readStdin :: IO String
 readStdin = do
   readFile "/dev/stdin"
 
-enumerate :: [a] -> [(Int, a)]
-enumerate = L.zip [0 ..]
-
 toInt :: String -> Int
 toInt str = read str :: Int
 
-inRange :: (Ord a) => a -> a -> a -> Bool
-inRange min max val = min <= val && val <= max
-
-myTrace :: (Show a) => String -> a -> a
-myTrace msg a = traceShow (msg ++ " " ++ show a) a
-
-outletJolts :: Int
 outletJolts = 0
 
-joltDiff :: Int
 joltDiff = 3
 
 numDiffs :: Int -> [Int] -> Int
@@ -46,29 +35,29 @@ numDiffs wantedDiff l = L.length $ L.filter (== wantedDiff) diffs
 zipWithConst :: a -> [a] -> [(a, a)]
 zipWithConst val = L.map (, val)
 
-addWhileSmaller :: (Int, Int) -> [(Int, Int)] -> [(Int, Int)]
-addWhileSmaller tup [] = []
-addWhileSmaller tup@(val, count) l@((jolt, joltCount):xs) =
-  if val + 3 >= jolt
-    then (jolt, joltCount + count) : addWhileSmaller tup xs
+addWhileGreater :: Int -> (Int, Int) -> [(Int, Int)] -> [(Int, Int)]
+addWhileGreater diff tup [] = []
+addWhileGreater diff tup@(val, count) l@((jolt, joltCount):xs) =
+  if val + diff >= jolt
+    then (jolt, joltCount + count) : addWhileGreater diff tup xs
     else l
 
 countConnections :: [(Int, Int)] -> [(Int, Int)]
 countConnections [x] = [x]
 countConnections (tup@(jolt, count):xs) =
-  countConnections $ addWhileSmaller tup xs
+  countConnections $ addWhileGreater joltDiff tup xs
 
 main :: IO ()
 main = do
   contents <- readStdin
   let jolts = L.map toInt $ L.words contents
-  let deviceJolts = L.maximum jolts + joltDiff
-  let part1 = Sort.sort $ [0] ++ jolts ++ [deviceJolts]
-  let solution = numDiffs 1 part1 * numDiffs 3 part1
-  print (part1, solution, L.length part1, L.length jolts)
+  let deviceJolts = joltDiff + L.maximum jolts
+  let sortedJolts = Sort.sort $ [0] ++ jolts ++ [deviceJolts]
+  let part1 = numDiffs 1 sortedJolts * numDiffs 3 sortedJolts
+  print part1
   -- Part 2
   let counts =
         [(outletJolts, 1)] ++
         zipWithConst 0 (Sort.sort jolts) ++ [(deviceJolts, 0)]
-  let part2 = countConnections counts
+  let part2 = snd $ L.head $ countConnections counts
   print part2
