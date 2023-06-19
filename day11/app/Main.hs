@@ -90,22 +90,28 @@ occupiedNeighCount map coords seat =
     then (seat, countOcc map $ environment coords)
     else (seat, 0)
 
-nextState :: (Seat, Int) -> Seat
-nextState (seat, neighCount) =
+occupiedVisibleCount :: Map (Int, Int) Seat -> (Int, Int) -> Seat -> (Seat, Int)
+occupiedVisibleCount map coords seat =
+  if seat == OccupiedS || seat == EmptyS
+    then (seat, countOcc map $ environment coords)
+    else (seat, 0)
+
+nextState :: Int -> (Seat, Int) -> Seat
+nextState maxNeigh (seat, neighCount) =
   case seat of
     EmptyS ->
       if neighCount == 0
         then OccupiedS
         else seat
     OccupiedS ->
-      if neighCount >= 4
+      if neighCount >= maxNeigh
         then EmptyS
         else seat
     PanicS -> error "cannot happen"
     _ -> seat
 
-nextMapState :: Map (Int, Int) (Seat, Int) -> Map (Int, Int) Seat
-nextMapState = M.map nextState
+nextMapState :: Int -> Map (Int, Int) (Seat, Int) -> Map (Int, Int) Seat
+nextMapState maxNeigh = M.map (nextState maxNeigh)
 
 printMapWithSize :: (Int, Int) -> (Int, Int) -> Map (Int, Int) Seat -> String
 printMapWithSize coord@(x, y) max@(xmax, ymax) map = result
@@ -125,17 +131,20 @@ addToFst :: Int -> (Int, a) -> (Int, a)
 addToFst add (val, any) = (add + val, any)
 
 iterateUntilUnchanged ::
-     (Map (Int, Int) Seat -> String)
+     Int
+  -> (Map (Int, Int) Seat -> String)
+  -> (Map (Int, Int) Seat -> (Int, Int) -> Seat -> (Seat, Int))
   -> Map (Int, Int) Seat
   -> (Int, Map (Int, Int) Seat)
-iterateUntilUnchanged printFn map = result
+iterateUntilUnchanged maxNeigh printFn occNeighCountFn map = result
   where
-    counts = M.mapWithKey (occupiedNeighCount map) map
-    nextMap = nextMapState counts
+    counts = M.mapWithKey (occNeighCountFn map) map
+    nextMap = nextMapState maxNeigh counts
     changed = myTrace (printFn nextMap) $ map /= nextMap
     result =
       if changed
-        then addToFst 1 $ iterateUntilUnchanged printFn nextMap
+        then addToFst 1 $
+             iterateUntilUnchanged maxNeigh printFn occNeighCountFn nextMap
         else (0, map)
 
 countTotalOcc :: Map (Int, Int) Seat -> Int
@@ -150,6 +159,9 @@ main = do
   let map = M.fromList mappable
   let sqrt = intSqrt (L.length mappable) - 1
   let printFn = printMapWithSize (0, 0) (sqrt, sqrt)
-  let (count, endMap) = iterateUntilUnchanged printFn map
+  let (_, endMap) = iterateUntilUnchanged 4 printFn occupiedNeighCount map
   putStrLn $ printFn endMap
   print $ countTotalOcc endMap
+  let (_, endMap2) = iterateUntilUnchanged 5 printFn occupiedVisibleCount map
+  putStrLn $ printFn endMap2
+  print $ countTotalOcc endMap2
