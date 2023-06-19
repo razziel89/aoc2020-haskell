@@ -70,6 +70,29 @@ environment (x, y) =
   , (x + 1, y + 1)
   ]
 
+addVec :: (Int, Int) -> (Int, Int) -> (Int, Int)
+addVec (x, y) (a, b) = (x + a, y + b)
+
+dirs :: [(Int, Int)]
+dirs = [(-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 1)]
+
+nextSeatInDir :: Map (Int, Int) Seat -> (Int, Int) -> (Int, Int) -> Seat
+nextSeatInDir map coords dir = result
+  where
+    disp = addVec coords dir
+    neigh = M.findWithDefault PanicS disp map
+    result =
+      case neigh of
+        PanicS -> EmptyS
+        EmptyS -> neigh
+        OccupiedS -> neigh
+        FloorS -> nextSeatInDir map disp dir
+
+visibleSeats :: Map (Int, Int) Seat -> (Int, Int) -> [Seat]
+visibleSeats map coords = L.map mapFn dirs
+  where
+    mapFn = nextSeatInDir map coords
+
 countOcc :: Map (Int, Int) Seat -> [(Int, Int)] -> Int
 countOcc map [] = 0
 countOcc map (x:xs) =
@@ -93,7 +116,7 @@ occupiedNeighCount map coords seat =
 occupiedVisibleCount :: Map (Int, Int) Seat -> (Int, Int) -> Seat -> (Seat, Int)
 occupiedVisibleCount map coords seat =
   if seat == OccupiedS || seat == EmptyS
-    then (seat, countOcc map $ environment coords)
+    then (seat, L.length $ L.filter (== OccupiedS) $ visibleSeats map coords)
     else (seat, 0)
 
 nextState :: Int -> (Seat, Int) -> Seat
@@ -160,8 +183,8 @@ main = do
   let sqrt = intSqrt (L.length mappable) - 1
   let printFn = printMapWithSize (0, 0) (sqrt, sqrt)
   let (_, endMap) = iterateUntilUnchanged 4 printFn occupiedNeighCount map
-  putStrLn $ printFn endMap
-  print $ countTotalOcc endMap
   let (_, endMap2) = iterateUntilUnchanged 5 printFn occupiedVisibleCount map
+  putStrLn $ printFn endMap
   putStrLn $ printFn endMap2
+  print $ countTotalOcc endMap
   print $ countTotalOcc endMap2
