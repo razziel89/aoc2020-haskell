@@ -21,6 +21,9 @@ readStdin = do
 enumerate :: [a] -> [(Int, a)]
 enumerate = L.zip [0 ..]
 
+myTrace :: (Show a) => String -> a -> a
+myTrace msg a = traceShow (msg ++ " " ++ show a) a
+
 data Seat
   = EmptyS
   | OccupiedS
@@ -111,9 +114,33 @@ printMapWithSize coord@(x, y) max@(xmax, ymax) map = result
     result =
       if x == xmax
         then if y == ymax
-               then printSeat seat : "\n"
+               then printSeat seat : "\n\n"
                else printSeat seat : '\n' : printMapWithSize (0, y + 1) max map
         else printSeat seat : printMapWithSize (x + 1, y) max map
+
+intSqrt :: Int -> Int
+intSqrt = floor . sqrt . fromIntegral
+
+addToFst :: Int -> (Int, a) -> (Int, a)
+addToFst add (val, any) = (add + val, any)
+
+iterateUntilUnchanged ::
+     (Map (Int, Int) Seat -> String)
+  -> Map (Int, Int) Seat
+  -> (Int, Map (Int, Int) Seat)
+iterateUntilUnchanged printFn map = result
+  where
+    counts = M.mapWithKey (occupiedNeighCount map) map
+    nextMap = nextMapState counts
+    changed = myTrace (printFn nextMap) $ map /= nextMap
+    result =
+      if changed
+        then addToFst 1 $ iterateUntilUnchanged printFn nextMap
+        else (0, map)
+
+countTotalOcc :: Map (Int, Int) Seat -> Int
+countTotalOcc map =
+  L.length $ L.filter (== OccupiedS) $ L.map snd $ M.toList map
 
 main :: IO ()
 main = do
@@ -121,13 +148,8 @@ main = do
   let rows = enumerate $ L.map (enumerate . charToSeat) $ L.words contents
   let mappable = listWithIndices rows
   let map = M.fromList mappable
-  let counts = M.mapWithKey (occupiedNeighCount map) map
-  -- print map
-  -- print counts
-  putStr $ printMapWithSize (0, 0) (9, 9) map
-  putStr "\n"
-  let nextMap = nextMapState counts
-  let nextCounts = M.mapWithKey (occupiedNeighCount nextMap) nextMap
-  -- print nextMap
-  putStr $ printMapWithSize (0, 0) (9, 9) nextMap
-  putStr "\n"
+  let sqrt = intSqrt (L.length mappable) - 1
+  let printFn = printMapWithSize (0, 0) (sqrt, sqrt)
+  let (count, endMap) = iterateUntilUnchanged printFn map
+  putStrLn $ printFn endMap
+  print $ countTotalOcc endMap
