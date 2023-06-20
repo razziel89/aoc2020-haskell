@@ -37,6 +37,20 @@ splitOn pred inputStr =
 flipTup :: (a, b) -> (b, a)
 flipTup (x, y) = (y, x)
 
+nextWithDiff :: Int -> Int -> Int -> Int -> Int
+nextWithDiff step diff curr mult =
+  if curr `mod` mult == diff
+    then curr
+    else nextWithDiff step diff (curr + step) mult
+
+solvePart2 :: [(Int, Int)] -> Int -> Int -> Int
+solvePart2 [] curr step = curr
+solvePart2 ((diff, mult):xs) curr step =
+  solvePart2 xs (nextWithDiff step diff curr mult) (mult * step)
+
+sndSubFstWithMod :: (Int, Int) -> (Int, Int)
+sndSubFstWithMod (x, y) = ((y - x) `mod` y, y)
+
 main :: IO ()
 main = do
   contents <- readStdin
@@ -51,3 +65,9 @@ main = do
   let busID = parsed !! snd earliest
   let part1 = (fst earliest - eta) * busID
   print part1
+  let parsed2 =
+        L.map (sndSubFstWithMod . second toInt) $
+        L.filter (\s -> snd s /= "x") $
+        enumerate $ splitOn (== ',') $ L.words contents !! 1
+  let part2 = solvePart2 parsed2 1 1
+  print part2
