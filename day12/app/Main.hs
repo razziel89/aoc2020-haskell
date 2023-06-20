@@ -40,6 +40,13 @@ data State =
 
 start = State EastD (0, 0)
 
+-- Waypoint coords come first, then come the ship coords.
+data StateWP =
+  StateWP (Int, Int) (Int, Int)
+  deriving (Show)
+
+startWP = StateWP (-10, -1) (0, 0)
+
 data Action
   = NorthA
   | SouthA
@@ -102,9 +109,25 @@ translate curr@(State dir coords) (act, dist) =
     WestA -> State newdir (addVec coords (dist, 0))
     LeftA -> State newdir coords
     RightA -> State newdir coords
-    ForwardA -> translate curr (myTrace "act" $ actionFromDir dir, dist)
+    ForwardA -> translate curr (actionFromDir dir, dist)
   where
     newdir = dirFromAction (act, dist) dir
+
+rotWPAroundShip :: (Int, Int) -> Int -> (Int, Int)
+rotWPAroundShip wp 0 = wp
+rotWPAroundShip (x, y) times = rotWPAroundShip (y, -x) (times - 1)
+
+translateWP :: StateWP -> (Action, Int) -> StateWP
+translateWP curr@(StateWP wp ship) (act, 0) = curr
+translateWP curr@(StateWP wp ship) (act, dist) =
+  case act of
+    NorthA -> StateWP (addVec wp (0, -dist)) ship
+    SouthA -> StateWP (addVec wp (0, dist)) ship
+    EastA -> StateWP (addVec wp (-dist, 0)) ship
+    WestA -> StateWP (addVec wp (dist, 0)) ship
+    LeftA -> StateWP (rotWPAroundShip wp (4 - (dist `div` 90))) ship
+    RightA -> StateWP (rotWPAroundShip wp (dist `div` 90)) ship
+    ForwardA -> translateWP (StateWP wp $ addVec ship wp) (act, dist - 1)
 
 main :: IO ()
 main = do
@@ -114,3 +137,6 @@ main = do
   let State _ (x, y) = final
   print parsed
   print (abs x + abs y)
+  let finalWP = L.foldl translateWP startWP parsed
+  let StateWP _ (xWP, yWP) = finalWP
+  print (abs xWP + abs yWP)
