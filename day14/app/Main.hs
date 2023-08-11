@@ -19,11 +19,14 @@ readStdin :: IO String
 readStdin = do
   readFile "/dev/stdin"
 
-enumerate :: [a] -> [(Integer, a)]
+enumerate :: [a] -> [(Int, a)]
 enumerate = L.zip [0 ..]
 
 myTrace :: (Show a) => String -> a -> a
 myTrace msg a = traceShow (msg ++ " " ++ show a) a
+
+myConvTrace :: (Show b) => String -> (a -> b) -> a -> a
+myConvTrace msg f a = traceShow (msg ++ " " ++ show (f a)) a
 
 toInt :: String -> Integer
 toInt str = read str :: Integer
@@ -42,23 +45,24 @@ orMask (x:xs) val = orMask xs nextVal
     nextVal = B.shiftL val 1 .|. thisBit
     thisBit =
       case x of
-        'X' -> B.zeroBits
-        '0' -> B.zeroBits
+        'X' -> 0
+        '0' -> 0
         '1' -> B.bit 0
 
 startOrMask :: Integer
 startOrMask = B.zeroBits
 
 andMask :: String -> Integer -> Integer
-andMask [] val = val
-andMask (x:xs) val = andMask xs nextVal
+andMask mask startVal = L.foldl (.&.) startVal $ L.map toBit withIdx
   where
-    nextVal = B.shiftL val 1 .|. thisBit
-    thisBit =
-      case x of
-        'X' -> B.bit 0
-        '1' -> B.bit 0
-        '0' -> B.clearBit val 0
+    maxIdx = L.length mask - 1
+    withIdx = L.map (applyToFst (maxIdx -)) $ enumerate mask
+    toBit :: (Int, Char) -> Integer
+    toBit (idx, char) =
+      case char of
+        'X' -> startVal
+        '1' -> startVal
+        '0' -> B.clearBit startVal idx
 
 numBits :: Integer
 numBits = 36
@@ -74,9 +78,6 @@ intToBin i = intToBin (i `div` 2) ++ intToBin (i `mod` 2)
 
 startAndMask :: Integer
 startAndMask = orMask (dupChar '1' numBits) startOrMask
-
-applyMask :: String -> Integer -> Integer
-applyMask mask org = org
 
 pairUp :: [a] -> [(a, a)]
 pairUp (x:y:xs) = (x, y) : pairUp xs
@@ -96,12 +97,26 @@ parse words =
   L.filter (\s -> s /= "mem" && s /= "=") $
   L.concatMap (splitOn (\s -> s == '[' || s == ']')) words
 
+maskNum :: (Integer, Integer) -> Integer -> Integer
+maskNum (and, or) val = or .|. (and .&. val)
+
+applyToSnd :: (a -> b) -> (c, a) -> (c, b)
+applyToSnd f (a, b) = (a, f b)
+
+applyToFst :: (a -> b) -> (a, c) -> (b, c)
+applyToFst f (a, b) = (f a, b)
+
+mapFstOverSnds :: (a -> b, [(c, a)]) -> [(c, b)]
+mapFstOverSnds (f, l) = L.map (applyToSnd f) l
+
+masksToBin :: (Integer, Integer) -> (String, String)
+masksToBin (i, j) = (intToBin i, intToBin j)
+
 main :: IO ()
 main = do
   contents <- readStdin
   let parsed = parse $ L.words contents
-  print parsed
-  print $ intToBin startOrMask
-  print $ intToBin startAndMask
-  let ((and, or), _) = L.head parsed
-  print $ intToBin $ or .|. (and .&. 0)
+  let converted = L.concatMap (mapFstOverSnds . applyToFst maskNum) parsed
+  let map = M.fromList converted
+  let sum = L.sum $ L.map snd $ M.toList map
+  print sum
