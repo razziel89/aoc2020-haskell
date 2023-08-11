@@ -112,6 +112,35 @@ mapFstOverSnds (f, l) = L.map (applyToSnd f) l
 masksToBin :: (Integer, Integer) -> (String, String)
 masksToBin (i, j) = (intToBin i, intToBin j)
 
+indicesWithOnes :: Integer -> [Int]
+indicesWithOnes i =
+  L.map fst $ L.filter ((== '1') . snd) $ enumerate $ intToBin i
+
+masksPart2 :: (Integer, Integer) -> (Integer, [Int])
+masksPart2 (and, or) = (or, indicesWithOnes (and `B.xor` or))
+
+dupBitAtIdx :: Int -> [Integer] -> [Integer]
+dupBitAtIdx idx = L.concatMap dup
+  where
+    dup val = [B.setBit val idx, B.clearBit val idx]
+
+shortList :: a -> [a]
+shortList a = [a]
+
+dupBitAtIndices :: [Integer] -> [Int] -> [Integer]
+dupBitAtIndices masks [] = []
+dupBitAtIndices masks (x:xs) = applied ++ dupBitAtIndices applied xs
+  where
+    applied = dupBitAtIdx x masks
+
+dupBits :: Integer -> [Int] -> [Integer]
+dupBits mask l =
+  myConvTrace "dupped" (L.map intToBin) $
+  S.toList $ S.fromList $ dupBitAtIndices [mask] l
+
+applyToTuple :: (a -> b -> c) -> (a, b) -> c
+applyToTuple f (a, b) = f a b
+
 main :: IO ()
 main = do
   contents <- readStdin
@@ -120,3 +149,7 @@ main = do
   let map = M.fromList converted
   let sum = L.sum $ L.map snd $ M.toList map
   print sum
+  let convertedPart2 = L.map (applyToFst masksPart2) parsed
+  print $ L.map (applyToFst (applyToFst intToBin)) convertedPart2
+  let dupped = L.map (applyToFst (applyToTuple dupBits)) convertedPart2
+  print dupped
