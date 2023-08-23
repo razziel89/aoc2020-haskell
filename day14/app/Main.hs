@@ -100,14 +100,26 @@ parse words =
 maskNum :: (Integer, Integer) -> Integer -> Integer
 maskNum (and, or) val = or .|. (and .&. val)
 
+maskNumOr :: Integer -> Integer -> Integer
+maskNumOr or val = or .|. val
+
 applyToSnd :: (a -> b) -> (c, a) -> (c, b)
 applyToSnd f (a, b) = (a, f b)
 
 applyToFst :: (a -> b) -> (a, c) -> (b, c)
 applyToFst f (a, b) = (f a, b)
 
+applyToFirstAndSecond :: (a -> b) -> (a, a) -> (b, b)
+applyToFirstAndSecond f (a, b) = (f a, f b)
+
 mapFstOverSnds :: (a -> b, [(c, a)]) -> [(c, b)]
 mapFstOverSnds (f, l) = L.map (applyToSnd f) l
+
+mapFstOverFsts :: (a -> b, [(a, c)]) -> [(b, c)]
+mapFstOverFsts (f, l) = L.map (applyToFst f) l
+
+mapFstFstOverFsts :: ((a -> b, d), [(a, c)]) -> (d, [(b, c)])
+mapFstFstOverFsts ((f, v), l) = (v, L.map (applyToFst f) l)
 
 masksToBin :: (Integer, Integer) -> (String, String)
 masksToBin (i, j) = (intToBin i, intToBin j)
@@ -133,13 +145,17 @@ dupBitAtIndices masks (x:xs) = applied ++ dupBitAtIndices applied xs
   where
     applied = dupBitAtIdx x masks
 
-dupBits :: Integer -> [Int] -> [Integer]
-dupBits mask l =
+dupBits :: [Int] -> Integer -> [Integer]
+dupBits l addr =
   myConvTrace "dupped" (L.map intToBin) $
-  S.toList $ S.fromList $ dupBitAtIndices [mask] l
+  S.toList $ S.fromList $ dupBitAtIndices [addr] l
 
 applyToTuple :: (a -> b -> c) -> (a, b) -> c
 applyToTuple f (a, b) = f a b
+
+explodeSnd :: ([a], b) -> [(a, b)]
+explodeSnd ([], v) = []
+explodeSnd (x:xs, v) = (x, v) : explodeSnd (xs, v)
 
 main :: IO ()
 main = do
@@ -150,6 +166,21 @@ main = do
   let sum = L.sum $ L.map snd $ M.toList map
   print sum
   let convertedPart2 = L.map (applyToFst masksPart2) parsed
-  print $ L.map (applyToFst (applyToFst intToBin)) convertedPart2
-  let dupped = L.map (applyToFst (applyToTuple dupBits)) convertedPart2
+  print $
+    -- L.map (applyToSnd (L.map (applyToFst intToBin))) $
+    L.map
+      (applyToSnd (L.map (applyToFst intToBin)) .
+       applyToFst (applyToFst intToBin))
+      convertedPart2
+  let converted =
+        L.map
+          (mapFstFstOverFsts . applyToFst (applyToFst maskNumOr))
+          convertedPart2
+  print converted
+  print $ L.map (applyToSnd (L.map (applyToFst intToBin))) converted
+  let withDupFns = L.map (applyToFst dupBits) converted
+  let dupped = L.map (L.map explodeSnd . mapFstOverFsts) withDupFns
   print dupped
+  -- let dupped = L.map (applyToFst (applyToTuple dupBits)) convertedPart2
+  -- print dupped
+  print ""
