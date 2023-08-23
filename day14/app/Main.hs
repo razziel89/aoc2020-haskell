@@ -126,7 +126,10 @@ masksToBin (i, j) = (intToBin i, intToBin j)
 
 indicesWithOnes :: Integer -> [Int]
 indicesWithOnes i =
-  L.map fst $ L.filter ((== '1') . snd) $ enumerate $ intToBin i
+  L.map ((maxBinIdx -) . fst) $ L.filter ((== '1') . snd) $ enumerate bin
+  where
+    bin = intToBin i
+    maxBinIdx = L.length bin - 1
 
 masksPart2 :: (Integer, Integer) -> (Integer, [Int])
 masksPart2 (and, or) = (or, indicesWithOnes (and `B.xor` or))
@@ -146,9 +149,7 @@ dupBitAtIndices masks (x:xs) = applied ++ dupBitAtIndices applied xs
     applied = dupBitAtIdx x masks
 
 dupBits :: [Int] -> Integer -> [Integer]
-dupBits l addr =
-  myConvTrace "dupped" (L.map intToBin) $
-  S.toList $ S.fromList $ dupBitAtIndices [addr] l
+dupBits l addr = S.toList $ S.fromList $ dupBitAtIndices [addr] l
 
 applyToTuple :: (a -> b -> c) -> (a, b) -> c
 applyToTuple f (a, b) = f a b
@@ -166,21 +167,20 @@ main = do
   let sum = L.sum $ L.map snd $ M.toList map
   print sum
   let convertedPart2 = L.map (applyToFst masksPart2) parsed
-  print $
-    -- L.map (applyToSnd (L.map (applyToFst intToBin))) $
-    L.map
-      (applyToSnd (L.map (applyToFst intToBin)) .
-       applyToFst (applyToFst intToBin))
-      convertedPart2
+  -- print $
+  --   L.map
+  --     (applyToSnd (L.map (applyToFst intToBin)) .
+  --      applyToFst (applyToFst intToBin))
+  --     convertedPart2
   let converted =
         L.map
           (mapFstFstOverFsts . applyToFst (applyToFst maskNumOr))
           convertedPart2
-  print converted
-  print $ L.map (applyToSnd (L.map (applyToFst intToBin))) converted
+  -- print converted
+  -- print $ L.map (applyToSnd (L.map (applyToFst intToBin))) converted
   let withDupFns = L.map (applyToFst dupBits) converted
-  let dupped = L.map (L.map explodeSnd . mapFstOverFsts) withDupFns
-  print dupped
-  -- let dupped = L.map (applyToFst (applyToTuple dupBits)) convertedPart2
+  let dupped = L.concatMap (L.concatMap explodeSnd . mapFstOverFsts) withDupFns
   -- print dupped
-  print ""
+  let mapPart2 = M.fromList dupped
+  let sumPart2 = L.sum $ L.map snd $ M.toList mapPart2
+  print sumPart2
