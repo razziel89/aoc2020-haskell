@@ -52,6 +52,17 @@ evolve count lastMap realLast = evolve (count + 1) nextMap next
         else count - 1 - lastSpoken
     nextMap = M.insert realLast (count - 1) lastMap
 
+evolvePart2 :: Int -> M.Map Int Int -> Int -> Int
+evolvePart2 30000000 lastMap realLast = realLast
+evolvePart2 count lastMap realLast = evolve (count + 1) nextMap next
+  where
+    lastSpoken = M.findWithDefault (-1) realLast lastMap
+    next =
+      if lastSpoken == -1
+        then 0
+        else count - 1 - lastSpoken
+    nextMap = M.insert realLast (count - 1) lastMap
+
 main :: IO ()
 main = do
   contents <- readStdin
@@ -61,5 +72,7 @@ main = do
         M.fromList $
         L.map swap $ L.take (L.length parsed - 1) $ enumerate parsed
   print last
-  let evolved = evolve (L.length parsed) last (L.last parsed)
-  print evolved
+  let evolvedPart1 = evolve (L.length parsed) last (L.last parsed)
+  print evolvedPart1
+  let evolvedPart2 = evolvePart2 (L.length parsed) last (L.last parsed)
+  print evolvedPart2
